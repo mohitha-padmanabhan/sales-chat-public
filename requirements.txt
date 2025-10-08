@@ -1,0 +1,6 @@
+fastmcp>=0.4
+pandas>=2.0
+plotly>=5.0
+openai>=1.0
+cachetools>=5.0
+uvicorn>=0.29
