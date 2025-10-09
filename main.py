@@ -1,9 +1,8 @@
-import os, pandas as pd, plotly.express as px, base64, io, uuid
+import os, pandas as pd, plotly.express as px, base64, io, uuid, textwrap
 from fastmcp import FastMCP
 from cachetools import TTLCache
 from dotenv import load_dotenv
 load_dotenv()
-import textwrap
 
 mcp = FastMCP("SalesCI")
 cache = TTLCache(maxsize=200, ttl=86_400)
@@ -20,26 +19,10 @@ def ask_question(session_id: str, question: str) -> dict:
         return {"error": "Session not found"}
     df = cache[session_id]["df"]
 
-    # ---- strict prompt ----
-    sys = (
-        "You MUST reply with ONLY valid Python code.\n"
-        "Use ONLY variables: df, pd, px.\n"
-        "End with two variables:\n"
-        "    answer = <markdown string>\n"
-        "    fig = <plotly figure or None>\n"
-        "No comments, no explanation, no back-ticks.\n"
-        f"DataFrame columns are exactly: {list(df.columns)}"
-    )
-    prompt = textwrap.dedent('''
-top = df.groupby("Rep")["Revenue"].sum().reset_index().sort_values("Revenue", ascending=False).head(5)
-ans_rows = []
-for i, row in top.iterrows():
-    ans_rows.append(f"| {i+1} | {row.Rep} | {row.Revenue} |")
-answer = "| Rank | Rep | Revenue |\\n|------|-----|----------|\\n" + "\\n".join(ans_rows)
-fig = None
-''')
+    sys = "You MUST reply with ONLY valid Python code. Use df, pd, px. End with answer and fig. No comments."
+    prompt = f"Columns: {list(df.columns)}\nQuestion: {question}"
 
-    import openai, os
+    import openai
     openai.api_key = os.getenv("OPENAI_API_KEY")
     resp = openai.chat.completions.create(
         model="gpt-3.5-turbo",
@@ -49,7 +32,6 @@ fig = None
     )
     code = resp.choices[0].message.content
 
-        # ---- safe execute ----
     l = {"df": df, "pd": pd, "px": px, "answer": "", "fig": None}
     try:
         exec(code, {}, l)
@@ -62,4 +44,4 @@ fig = None
     return {"answer": ans, "fig_b64": fig_b64}
 
 if __name__ == "__main__":
-   mcp.run(transport="stdio")
+    mcp.run(transport="http", host="0.0.0.0", port=8000)
