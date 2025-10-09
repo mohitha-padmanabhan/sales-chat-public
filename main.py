@@ -44,4 +44,6 @@ def ask_question(session_id: str, question: str) -> dict:
     return {"answer": ans, "fig_b64": fig_b64}
 
 if __name__ == "__main__":
-    mcp.run(transport="http", host="0.0.0.0", port=8000, session_middle_ware=False)
+    import uvicorn
+    uvicorn.run("main:mcp.app", host="0.0.0.0", port=8000, log_level="info")
+    
