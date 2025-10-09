@@ -1,11 +1,11 @@
 import subprocess, os, sys, uvicorn, fastapi, sse_starlette, json, asyncio
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, Response, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sse_starlette.sse import EventSourceResponse
 
 app = FastAPI(title="SalesCI-MCP-Proxy")
 
-# CORS allow all (Inspector needs it)
+# CORS allow all
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -14,7 +14,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# spawn your stdio server
+# spawn stdio server
 proc = subprocess.Popen(
     [sys.executable, "main.py"],
     stdin=subprocess.PIPE,
@@ -28,7 +28,7 @@ proc = subprocess.Popen(
 def health():
     return {"status": "ok"}
 
-# ---------- JSON-RPC entry ----------
+# ---------- MCP JSON-RPC ----------
 @app.post("/message")
 async def message(req: Request):
     body = await req.body()
@@ -36,7 +36,7 @@ async def message(req: Request):
     proc.stdin.flush()
     return Response(content=body, status_code=200)
 
-# ---------- SSE stream ----------
+# ---------- MCP SSE ----------
 @app.get("/sse")
 async def sse(req: Request):
     async def gen():
@@ -48,6 +48,13 @@ async def sse(req: Request):
                 break
             yield dict(data=line)
     return EventSourceResponse(gen())
+
+# ---------- redirect root POST ----------
+@app.post("/")
+async def root_post(req: Request):
+    # Inspector sometimes POSTs to / ; forward to /message
+    body = await req.body()
+    return await message(req)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)
