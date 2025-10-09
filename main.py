@@ -44,5 +44,4 @@ def ask_question(session_id: str, question: str) -> dict:
     return {"answer": ans, "fig_b64": fig_b64}
 
 if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run(mcp.app, host="0.0.0.0", port=8000, log_level="info")
+    mcp.run()          # let FastMCP pick transport/host/port
